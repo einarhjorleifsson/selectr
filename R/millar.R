@@ -1,4 +1,16 @@
-NetFit=function(Data,Meshsize,x0,rtype="norm.loc",rel.power=NULL) {
+#' @title Fit stuff
+#'
+#' @description XXX
+#'
+#' @export
+#'
+#' @param Data XXX
+#' @param Meshsize XXX
+#' @param x0 XXX
+#' @param rtype XXX
+#' @param rel.power XXX
+
+NetFit <- function(Data,Meshsize,x0,rtype="norm.loc",rel.power=NULL) {
   if(sum(sort(Meshsize)==Meshsize)!=length(Meshsize))
     stop("Mesh size must be ascending order")
   if(is.null(rel.power)) rel.power=rep(1,length(Meshsize))
@@ -12,8 +24,20 @@ NetFit=function(Data,Meshsize,x0,rtype="norm.loc",rel.power=NULL) {
             hessian=T,control=list(trace=F))
   cat("Parameters=",fit$par,",    Deviance=",2*(fullfit.l+fit$value),"\n")
   invisible(c(fit,deviance=deviance,rtype=rtype,rel.power=list(rel.power),
-              Meshsize=list(Meshsize),Data=list(Data))) }
+              Meshsize=list(Meshsize),Data=list(Data)))
+}
 
+
+#' @title Likelihood function
+#'
+#' @description XXX
+#'
+#'
+#' @param theta XXX
+#' @param Data XXX
+#' @param Meshsize XXX
+#' @param r XXX
+#' @param rel.power XXX
 nllhood=function(theta,Data,Meshsize,r,rel.power) {
   lens=Data[,1]; Counts=Data[,-1]
   rmatrix=outer(lens,Meshsize,r,theta)
@@ -23,22 +47,30 @@ nllhood=function(theta,Data,Meshsize,r,rel.power) {
   nll=-sum(Counts*log(phi),na.rm=TRUE)
   return(nll) }
 
-Estimates=function(fit) {
-  require("msm")
-  x=fit$par; varx=solve(fit$hess)
+#' @title Estimate stuff
+#'
+#' @description XXX
+#'
+#' @export
+#'
+#' @param fit XXX
+Estimates <- function(fit) {
+
+  x=fit$par
+  varx=solve(fit$hess)
   names=c("Mode(mesh1)","Std dev.(mesh1)")
   switch(fit$rtype,
          "norm.loc"={ pars=x; varpars=varx },
          "norm.sca"={ pars=x; varpars=varx },
          "lognorm"={
            pars=c(exp(x[1]-x[2]^2),sqrt(exp(2*x[1]+x[2]^2)*(exp(x[2]^2)-1)))
-           varpars=deltamethod(list(~exp(x1-x2^2),
+           varpars=msm::deltamethod(list(~exp(x1-x2^2),
                                     ~sqrt(exp(2*x1+x2^2)*(exp(x2^2)-1))),x,varx,ses=F)},
          "binorm.sca"={
            pars=c(x[1:4],exp(x[5])/(1+exp(x[5])))
            names=c("Mode1(mesh1)","Std dev.1(mesh1)",
                    "Mode2(mesh1)","Std dev.2(mesh1)","P(mode1)")
-           varpars=deltamethod(list(~x1,~x2,~x3,~x4,~exp(x5)/(1+exp(x5))),
+           varpars=msm::deltamethod(list(~x1,~x2,~x3,~x4,~exp(x5)/(1+exp(x5))),
                                x,varx,ses=F)},
          "bilognorm"={
            pars=c(exp(x[1]-x[2]^2),sqrt(exp(2*x[1]+x[2]^2)*(exp(x[2]^2)-1)),
@@ -46,14 +78,14 @@ Estimates=function(fit) {
                   exp(x[5])/(1+exp(x[5])))
            names=c("Mode1(mesh1)","Std dev.1(mesh1)",
                    "Mode2(mesh1)","Std dev.2(mesh1)","P(mode1)")
-           varpars=deltamethod(
+           varpars=msm::deltamethod(
              list(~exp(x1-x2^2),~sqrt(exp(2*x1+x2^2)*(exp(x2^2)-1)),
                   ~exp(x3-x4^2),~sqrt(exp(2*x3+x4^2)*(exp(x4^2)-1)),
                   ~exp(x5)/(1+exp(x5))),x,varx,ses=F)},
          "tt.logistic"={
            pars=c(-x[1]/x[2],2*(log(3))/x[2],exp(x[3])/(1+exp(x[3])))
            names=c("L50","SR","p")
-           varpars=deltamethod(list(~-x1/x2,~2*log(3)/x2,~exp(x3)/(1+exp(x3))),
+           varpars=msm::deltamethod(list(~-x1/x2,~2*log(3)/x2,~exp(x3)/(1+exp(x3))),
                                x,varx,ses=F)},
          stop(paste("\n",fit$rtype, "not recognised, possible curve types are \n",
                     "\"norm.loc\", \"norm.sca\", \"lognorm\" \n",
@@ -62,9 +94,21 @@ Estimates=function(fit) {
   estimates=cbind(pars,sqrt(diag(varpars)))
   colnames(estimates)=c("par","s.e.")
   rownames(estimates)=names
-  return(estimates) }
+  return(estimates)
+}
 
-PlotCurves=function(fit,Meshsize=NULL,plotlens=NULL,standardize=TRUE,...) {
+#' @title Plot stuff
+#'
+#' @description XXX
+#'
+#' @export
+#'
+#' @param fit XXX
+#' @param Meshsize XXX
+#' @param plotlens XXX
+#' @param standardize XXX
+#' @param ... XXX
+PlotCurves <- function(fit,Meshsize=NULL,plotlens=NULL,standardize=TRUE,...) {
   r=selncurves(fit$rtype) #Get selection curve function
   if(is.null(plotlens)) plotlens=fit$Data[,1]
   if(is.null(Meshsize)) Meshsize=fit$Meshsize
@@ -85,7 +129,18 @@ PlotCurves=function(fit,Meshsize=NULL,plotlens=NULL,standardize=TRUE,...) {
   colnames(lenrmatrix)=c("Length",Meshsize)
   invisible(lenrmatrix) }
 
-Summary=function(fit,label="Deviance residuals",
+#' @title Summarise stuff
+#'
+#' @description XXX
+#'
+#' @export
+#'
+#' @param fit XXX
+#' @param label XXX
+#' @param xlabel XXX
+#' @param ylabel XXX
+#' @param cex XXX
+Summary <- function(fit,label="Deviance residuals",
                  xlabel="Length (cm)",ylabel="Mesh size (cm)",cex=1) {
   r=selncurves(fit$rtype) #Get selection curve function
   lens=fit$Data[,1]; nlens=length(lens)
@@ -132,6 +187,13 @@ Summary=function(fit,label="Deviance residuals",
 #tt.richards, for richards fit to trouser trawl data
 #gamma, for net selectivity.
 
+#' @title Selection curves
+#'
+#' @description XXX
+#'
+#' @export
+#'
+#' @param rtype XXX
 selncurves=function(rtype) {
   switch(rtype,
          "norm.loc"={
